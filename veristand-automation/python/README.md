@@ -22,11 +22,13 @@ A minimal `pytest` example that automates VeriStand test execution.
 
 ```
 python-pytest-veristand/
-├── README.md              (this file)
-├── requirements.txt       (Python deps)
-├── conftest.py            (shared fixtures: system def path, deployment lifecycle)
-├── test_veristand_smoke.py  (one minimal end-to-end test)
-└── system-definition/     (placeholder for the example .nivssdf)
+├── core/                           Folder of helper functions for writing tests
+├── conftest.py                     (shared fixtures: system def path, deployment lifecycle)
+├── engine_demo.py                  Python object for organizing VeriStand channels
+├── pytest_runner.py                A script to easily run the tests
+├── README.md                       (this file)
+├── requirements.txt                (Python deps)
+└── test_veristand_smoke.py         (one minimal end-to-end test)
 ```
 
 The actual sample files will land here as the session approaches.
@@ -35,7 +37,20 @@ The actual sample files will land here as the session approaches.
 
 Once the sample is in place:
 
-```bash
-pip install -r requirements.txt
+```powershell
+python -m pip install -r requirements.txt
+python pytest_runner.py
+```
+
+or
+
+```powershell
+python -m pip install -r requirements.txt
 pytest -v
 ```
+
+## Reccomended Reading
+
+- [PyTest Documentation](https://docs.pytest.org/en/stable/index.html)
+- [Veristand User Manual](https://www.ni.com/docs/en-US/bundle/veristand/page/user-manual-welcome.html)
+- [Automate the Boring Stuff -- Python Tutorial](https://automatetheboringstuff.com/)
