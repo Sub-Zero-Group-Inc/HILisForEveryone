@@ -1,7 +1,7 @@
 from pathlib import Path
 from niveristand.legacy.NIVeriStand import Workspace2
 from core.veristand_channels import In, Out
-from core.veristand_utilities import Project
+from core.veristand_utilities import LaunchMode, Project
 
 ENGINE_DEMO_PROJECT_DIR = str(Path(__file__).resolve().parents[1] / "engine-demo")
 ENGINE_DEMO_PROJECT_FILE = str(Path(ENGINE_DEMO_PROJECT_DIR) / "engine-demo.nivsprj")
@@ -15,6 +15,9 @@ ENGINE_DEMO_PROJECT = Project(
     screen_file=ENGINE_DEMO_SCREEN_FILE,
     calibration_file=ENGINE_DEMO_CALIBRATION_FILE,
     system_definition_file=ENGINE_DEMO_SYSTEM_DEFINITION_FILE,
+    # UI: opens VeriStand desktop + operate screen.
+    # HEADLESS: starts only the gateway server for non-interactive runs.
+    launch_mode=LaunchMode.UI,
 )
 
 

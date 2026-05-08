@@ -9,7 +9,11 @@ from core.utils import wait_until
 
 
 class LaunchMode(enum.Enum):
+    # Launch full VeriStand desktop app and project explorer.
+    # This mode opens the project and can connect an operate screen for visual feedback.
     UI = "ui"
+    # Launch only the VeriStand gateway server (no desktop UI windows).
+    # This mode is typically preferred for CI/automation runs.
     HEADLESS = "headless"
 
 
@@ -20,6 +24,8 @@ class Project:
     hostname: str = "localhost"
     veristand_gateway: str = (r"C:\Program Files\National Instruments\VeriStand 2024\veristand-server.exe")
     veristand_ui: str = (r"C:\Program Files\National Instruments\VeriStand 2024\veristand.exe")
+    # Available values: LaunchMode.UI or LaunchMode.HEADLESS.
+    # UI opens/verifies the project in the desktop app; HEADLESS starts only the gateway service.
     launch_mode: LaunchMode = DEFAULT_LAUNCH_MODE
     project_directory: str = ""
     project_file: Optional[str] = None
@@ -62,15 +68,34 @@ def _launch_veristand(vs_project: Project):
         vs_project.project_file,
         "/gateway",
         vs_project.hostname,
-        "/sysDef",
-        vs_project.system_definition_file,
-        "/deploy",
     ]
+    if vs_project.system_definition_file:
+        launch_args += ["/sysDef", vs_project.system_definition_file]
     if vs_project.screen_file:
         # /openFile path is relative to the project file.
         launch_args += ["/openFile", vs_project.screen_file]
     subprocess.Popen(
         launch_args,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+
+def _connect_ui_screen(vs_project: Project):
+    if vs_project.launch_mode is not LaunchMode.UI:
+        return
+    # Mirrors Operate > Connect so the demo screen shows live values while tests run.
+    connect_args = [
+        vs_project.veristand_ui,
+        "/openProject",
+        vs_project.project_file,
+        "/gateway",
+        vs_project.hostname,
+        "/connect",
+        "/operateScreen",
+    ]
+    subprocess.Popen(
+        connect_args,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
@@ -100,6 +125,33 @@ def _wait_for_system_ready(workspace: Workspace2, expected_sdf: str, timeout_sec
                 "Failed to reach ready state (Active + targets + expected SDF)."
             )
         time.sleep(1)
+
+
+def _wait_for_ui_ready(vs_project: Project, workspace: Workspace2, expected_sdf: str):
+    if vs_project.launch_mode is not LaunchMode.UI:
+        return
+
+    start = time.time()
+    while True:
+        ui_running = any(
+            p.name().lower() in vs_project.process_names for p in psutil.process_iter()
+        )
+        if not ui_running:
+            if (time.time() - start) > 20:
+                raise Exception("VeriStand UI did not start in time")
+            time.sleep(0.5)
+            continue
+
+        system_state = workspace.GetSystemState()
+        if _is_system_ready(system_state, expected_sdf):
+            # Small render settle so the demo screen visibly catches up before tests begin.
+            print("VeriStand project is loaded. Waiting for screen to connect...", end="")
+            time.sleep(10)
+            return
+
+        if (time.time() - start) > 30:
+            raise Exception("VeriStand UI did not reach a ready connected state")
+        time.sleep(0.5)
 
 
 @contextlib.contextmanager
@@ -141,7 +193,10 @@ def connect_to_engine(vs_project: Project):
             else:
                 raise e
     try:
-        if not running:
+        if vs_project.launch_mode is LaunchMode.UI:
+            # CLI commands are valid whether VeriStand is already open or not.
+            _launch_veristand(vs_project)
+        elif not running:
             _launch_veristand(vs_project)
     except OSError:
         raise Exception("Could not launch VeriStand")
@@ -172,6 +227,8 @@ def connect_to_engine(vs_project: Project):
                 vs_project.calibration_file,
             )
         _wait_for_system_ready(workspace, expected_sdf, timeout_seconds=60)
+        _connect_ui_screen(vs_project)
+        _wait_for_ui_ready(vs_project, workspace, expected_sdf)
         yield workspace
     finally:
         pass

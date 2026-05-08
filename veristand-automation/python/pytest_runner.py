@@ -1,5 +1,11 @@
 import pytest
 import sys
+from importlib.util import find_spec
+
+
+def _has_pytest_html() -> bool:
+    """Return True when pytest-html is importable in the current environment."""
+    return find_spec("pytest_html") is not None
 
 
 def main():
@@ -18,6 +24,13 @@ def main():
         "--verbosity", "2",
     ]
     # fmt: on
+
+    # Only include HTML report flags if pytest-html is installed.
+    if _has_pytest_html():
+        flags += [
+            "--html", "report.html",
+            "--self-contained-html",
+        ]
 
     # Pass extra arguments to PyTest dynamically. Unused in this demo.
     cli_flags = []
